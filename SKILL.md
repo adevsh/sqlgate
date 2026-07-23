@@ -407,21 +407,21 @@ CREATE TABLE audit_log (
 
 ### Phase 8 — Approval Workflow
 
-- [ ] Approver-facing view: pending requests list, each showing requester,
+- [x] Approver-facing view: pending requests list, each showing requester,
       submitted query, the stored preview, target topology
-- [ ] Approve action: insert `approvals` row with `decision = 'approved'`,
+- [x] Approve action: insert `approvals` row with `decision = 'approved'`,
       set `expires_at` (configurable TTL, e.g. 15 minutes), update
       `requests.status = 'pending_approval'` -> `approved`
-- [ ] Reject action: insert `approvals` row with `decision = 'rejected'`,
+- [x] Reject action: insert `approvals` row with `decision = 'rejected'`,
       update `requests.status = 'rejected'` (terminal state)
-- [ ] Background sweep (or lazy check on access): any `approved` request past
+- [x] Background sweep (or lazy check on access): any `approved` request past
       `expires_at` transitions to `expired`, writes an `audit_log` entry
-- [ ] Prevent an approver from approving their own submitted request
+- [x] Prevent an approver from approving their own submitted request
       (compare `requester_email` vs the CF Access identity performing the
       approval)
-- [ ] Test: approving an already-expired request is rejected
-- [ ] Test: a requester cannot approve their own request
-- [ ] Test: rejected requests cannot later be approved
+- [x] Test: approving an already-expired request is rejected
+- [x] Test: a requester cannot approve their own request
+- [x] Test: rejected requests cannot later be approved
 
 ---
 

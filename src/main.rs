@@ -135,9 +135,215 @@ fn submit_handler(req: &request::Request) -> Response {
     }
 }
 
+
 /// Extract the HTML body string from a Response for use with render_page.
 fn extract_body(resp: &Response) -> String {
     String::from_utf8_lossy(&resp.body).into_owned()
+}
+
+// --- Approval workflow handlers ---
+
+/// GET /approvals — list pending_approval requests.
+fn approvals_list_handler(req: &request::Request) -> Response {
+    let pool = DB_POOL.get().and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized");
+
+    // Lazy-expire stale approvals first.
+    let _ = db::approvals::expire_stale_approvals(pool);
+
+    match db::requests::list_requests(pool, Some("pending_approval"), 50, 0) {
+        Ok(requests) => templates::render_page(
+            req,
+            &extract_body(&templates::approvals_list(&requests)),
+            "Pending Approvals",
+        ),
+        Err(e) => templates::submit_error(&format!("Failed to load approvals: {e}")),
+    }
+}
+
+/// POST /request-approval — transition previewed → pending_approval.
+fn request_approval_handler(req: &request::Request) -> Response {
+    let user = match &req.authenticated_user {
+        Some(u) => u,
+        None => return Response::bad_request("authentication required"),
+    };
+
+    let form = req.parse_form();
+    let request_id_str = form.get("request_id").map(|s| s.as_str()).unwrap_or("");
+    let request_id = match uuid::Uuid::parse_str(request_id_str) {
+        Ok(id) => id,
+        Err(_) => return templates::submit_error("Invalid request ID"),
+    };
+
+    let pool = DB_POOL.get().and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized");
+
+    // Fetch the request.
+    let request = match db::requests::get_request(pool, &request_id) {
+        Ok(Some(r)) => r,
+        Ok(None) => return templates::submit_error("Request not found"),
+        Err(e) => return templates::submit_error(&format!("Database error: {e}")),
+    };
+
+    // Only previewed requests can request approval.
+    if request.status != "previewed" {
+        return templates::submit_error(&format!(
+            "Cannot request approval for request in status '{}'",
+            request.status
+        ));
+    }
+
+    // Update status.
+    let _ = db::requests::update_status(pool, &request_id, "pending_approval");
+
+    // Audit log.
+    let _ = db::audit::append_audit_event(
+        pool,
+        Some(&request_id),
+        "requested_approval",
+        &user.email,
+        None,
+    );
+
+    templates::approval_requested(&request_id.to_string())
+}
+
+/// POST /approve — transition pending_approval → approved.
+fn approve_handler(req: &request::Request) -> Response {
+    let user = match &req.authenticated_user {
+        Some(u) => u,
+        None => return Response::bad_request("authentication required"),
+    };
+
+    let form = req.parse_form();
+    let request_id_str = form.get("request_id").map(|s| s.as_str()).unwrap_or("");
+    let request_id = match uuid::Uuid::parse_str(request_id_str) {
+        Ok(id) => id,
+        Err(_) => return templates::submit_error("Invalid request ID"),
+    };
+
+    let pool = DB_POOL.get().and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized");
+
+    // Lazy-expire stale approvals.
+    let _ = db::approvals::expire_stale_approvals(pool);
+
+    let request = match db::requests::get_request(pool, &request_id) {
+        Ok(Some(r)) => r,
+        Ok(None) => return templates::submit_error("Request not found"),
+        Err(e) => return templates::submit_error(&format!("Database error: {e}")),
+    };
+
+    // Prevent self-approval.
+    if request.requester_email == user.email {
+        return templates::submit_error("You cannot approve your own request");
+    }
+
+    // Only pending_approval requests can be approved.
+    if request.status != "pending_approval" {
+        return templates::submit_error(&format!(
+            "Cannot approve request in status '{}'",
+            request.status
+        ));
+    }
+
+    // Compute TTL.
+    let ttl_secs: u64 = std::env::var("APPROVAL_TTL_SECONDS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(900);
+    let expires_at = std::time::SystemTime::now()
+        .checked_add(std::time::Duration::from_secs(ttl_secs))
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
+    // Insert approval.
+    let _ = db::approvals::insert_approval(
+        pool,
+        &request_id,
+        &user.email,
+        "approved",
+        Some(expires_at),
+    );
+
+    // Update status.
+    let _ = db::requests::update_status(pool, &request_id, "approved");
+
+    // Audit log.
+    let details = serde_json::json!({
+        "ttl_seconds": ttl_secs,
+        "expires_at": format!("{:?}", expires_at),
+    });
+    let _ = db::audit::append_audit_event(
+        pool,
+        Some(&request_id),
+        "approved",
+        &user.email,
+        Some(&details),
+    );
+
+    // Return updated approvals list.
+    match db::requests::list_requests(pool, Some("pending_approval"), 50, 0) {
+        Ok(requests) => templates::approvals_list(&requests),
+        Err(e) => templates::submit_error(&format!("Failed to reload: {e}")),
+    }
+}
+
+/// POST /reject — transition pending_approval → rejected (terminal).
+fn reject_handler(req: &request::Request) -> Response {
+    let user = match &req.authenticated_user {
+        Some(u) => u,
+        None => return Response::bad_request("authentication required"),
+    };
+
+    let form = req.parse_form();
+    let request_id_str = form.get("request_id").map(|s| s.as_str()).unwrap_or("");
+    let request_id = match uuid::Uuid::parse_str(request_id_str) {
+        Ok(id) => id,
+        Err(_) => return templates::submit_error("Invalid request ID"),
+    };
+
+    let pool = DB_POOL.get().and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized");
+
+    let request = match db::requests::get_request(pool, &request_id) {
+        Ok(Some(r)) => r,
+        Ok(None) => return templates::submit_error("Request not found"),
+        Err(e) => return templates::submit_error(&format!("Database error: {e}")),
+    };
+
+    // Prevent self-rejection (same principle as self-approval).
+    if request.requester_email == user.email {
+        return templates::submit_error("You cannot reject your own request");
+    }
+
+    // Only pending_approval can be rejected.
+    if request.status != "pending_approval" {
+        return templates::submit_error(&format!(
+            "Cannot reject request in status '{}'",
+            request.status
+        ));
+    }
+
+    // Insert rejection (no expiry).
+    let _ = db::approvals::insert_approval(pool, &request_id, &user.email, "rejected", None);
+
+    // Update status.
+    let _ = db::requests::update_status(pool, &request_id, "rejected");
+
+    // Audit log.
+    let _ = db::audit::append_audit_event(
+        pool,
+        Some(&request_id),
+        "rejected",
+        &user.email,
+        None,
+    );
+
+    // Return updated approvals list.
+    match db::requests::list_requests(pool, Some("pending_approval"), 50, 0) {
+        Ok(requests) => templates::approvals_list(&requests),
+        Err(e) => templates::submit_error(&format!("Failed to reload: {e}")),
+    }
 }
 
 /// Root page — welcome / dashboard.
@@ -192,8 +398,12 @@ fn main() {
     router.add(Method::GET, "/", root_handler);
     router.add(Method::GET, "/health", health_handler);
     router.add(Method::GET, "/submit", submit_form_handler);
+    router.add(Method::GET, "/approvals", approvals_list_handler);
     if has_db {
         router.add(Method::POST, "/submit", submit_handler);
+        router.add(Method::POST, "/request-approval", request_approval_handler);
+        router.add(Method::POST, "/approve", approve_handler);
+        router.add(Method::POST, "/reject", reject_handler);
     }
     let router = Arc::new(router);
 

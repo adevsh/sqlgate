@@ -313,16 +313,10 @@ pub fn preview_result(
     </div>
     <div class="mt-4 flex gap-3">
         <button class="bg-emerald-700 text-parchment px-4 py-2 rounded text-sm font-medium hover:bg-emerald-800"
-                hx-post="/approve" hx-vals='{"request_id": ""##));
+                hx-post="/request-approval" hx-vals='{"request_id": ""##));
     html.push_str(request_id);
     html.push_str(concat!(r##""}' hx-target="#content">
             Request Approval
-        </button>
-        <button class="border border-rust text-rust px-4 py-2 rounded text-sm font-medium hover:bg-rust hover:text-parchment"
-                hx-post="/reject" hx-vals='{"request_id": ""##));
-    html.push_str(request_id);
-    html.push_str(concat!(r##""}' hx-target="#content">
-            Reject
         </button>
         <a href="/submit" class="inline-block text-ink-muted hover:text-ink text-sm py-2"
            hx-get="/submit" hx-target="#content" hx-swap="innerHTML">
@@ -340,6 +334,86 @@ fn html_escape(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+
+/// Approvals list: shows all pending_approval requests with approve/reject
+/// buttons.
+pub fn approvals_list(requests: &[crate::db::requests::Request]) -> Response {
+    if requests.is_empty() {
+        return Response::ok_html(
+            r##"<div class="max-w-4xl mx-auto mt-20 text-center">
+    <p class="text-ink-muted">No pending approvals.</p>
+    <a href="/submit" class="inline-block mt-4 text-rust hover:underline text-sm"
+       hx-get="/submit" hx-target="#content" hx-swap="innerHTML">
+        Submit a query
+    </a>
+</div>"##.to_string(),
+        );
+    }
+
+    let mut html = String::from(r##"<div class="max-w-4xl mx-auto">
+    <h2 class="text-xl font-bold text-rust mb-4">Pending Approvals</h2>
+    <div class="space-y-4">
+"##);
+
+    for req in requests {
+        html.push_str(r##"        <div class="border border-parchment-darker rounded p-4 bg-parchment">
+            <div class="flex items-start justify-between mb-2">
+                <div>
+                    <span class="text-xs text-ink-muted">Requester:</span>
+                    <span class="text-sm text-ink font-medium ml-1">"##);
+        html.push_str(&req.requester_email);
+        html.push_str(&format!(
+            r##"</span>
+                    <span class="text-xs text-ink-muted ml-4">Target:</span>
+                    <span class="text-sm text-ink ml-1">{} ({})</span>
+                </div>
+                <span class="text-xs text-ink-muted">{}</span>
+            </div>
+            <pre class="bg-parchment-darker rounded p-2 text-xs font-mono text-ink mb-3 overflow-x-auto">{}</pre>
+            <div class="flex gap-2">
+                <button class="bg-emerald-700 text-parchment px-3 py-1 rounded text-xs font-medium hover:bg-emerald-800"
+                        hx-post="/approve" hx-vals='{{"request_id": "{}"}}' hx-target="#content">
+                    Approve
+                </button>
+                <button class="border border-rust text-rust px-3 py-1 rounded text-xs font-medium hover:bg-rust hover:text-parchment"
+                        hx-post="/reject" hx-vals='{{"request_id": "{}"}}' hx-target="#content">
+                    Reject
+                </button>
+            </div>
+        </div>
+"##,
+            req.target_db, req.target_topology,
+            req.id,
+            req.query_text,
+            req.id, req.id,
+        ));
+    }
+
+    html.push_str(r##"    </div>
+</div>"##);
+    Response::ok_html(html)
+}
+
+/// Success message after requesting approval.
+pub fn approval_requested(request_id: &str) -> Response {
+    let html = format!(
+        r##"<div class="max-w-2xl mx-auto text-center mt-20">
+    <div class="text-5xl mb-4 text-emerald-600">&#10003;</div>
+    <h2 class="text-xl font-bold text-ink mb-2">Approval Requested</h2>
+    <p class="text-ink-muted mb-4">
+        Request <code class="bg-parchment-darker px-2 py-0.5 rounded text-sm font-mono">{}</code>
+        is now pending approval.
+    </p>
+    <a href="/approvals" class="inline-block mt-4 text-rust hover:underline text-sm"
+       hx-get="/approvals" hx-target="#content" hx-swap="innerHTML">
+        View pending approvals
+    </a>
+</div>"##,
+        request_id
+    );
+    Response::ok_html(html)
 }
 
 #[cfg(test)]
