@@ -2,7 +2,7 @@
 
 TAILWIND_VERSION := v4.1.18
 TAILWIND_BIN := ./bin/tailwindcss
-ALPINE_VERSION := 3.14.9
+HTMX_VERSION := 4.0.0-beta.5
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
@@ -22,13 +22,19 @@ $(TAILWIND_BIN):
 	chmod +x $(TAILWIND_BIN)
 	@echo "tailwindcss $(TAILWIND_VERSION) installed to bin/"
 
-assets: static/alpine.min.js ## Download vendor static assets
+assets: static/alpine.min.js static/htmx.min.js ## Download vendor static assets
 
 static/alpine.min.js:
 	@mkdir -p static
 	curl -sSLo static/alpine.min.js \
 		https://cdn.jsdelivr.net/npm/alpinejs@$(ALPINE_VERSION)/dist/cdn.min.js
 	@echo "Alpine.js $(ALPINE_VERSION) vendored to static/"
+
+static/htmx.min.js:
+	@mkdir -p static
+	curl -sSLo static/htmx.min.js \
+		https://github.com/bigskysoftware/htmx/releases/download/v$(HTMX_VERSION)/htmx.min.js
+	@echo "HTMX $(HTMX_VERSION) vendored to static/"
 
 install: ## Build release binary
 	cargo build --release

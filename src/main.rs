@@ -9,6 +9,7 @@
 
 mod http;
 mod static_files;
+mod templates;
 
 use http::request;
 use http::response::Response;
@@ -23,6 +24,22 @@ use std::time::Duration;
 static RUNNING: AtomicBool = AtomicBool::new(true);
 extern "C" fn handle_signal(_signum: libc::c_int) {
     RUNNING.store(false, Ordering::SeqCst);
+}
+
+/// Root page — welcome / dashboard.
+fn root_handler(req: &request::Request) -> Response {
+    templates::render_page(
+        req,
+        r#"<div class="max-w-2xl mx-auto text-center mt-20">
+    <h1 class="text-3xl font-bold text-rust mb-4">sqlgate</h1>
+    <p class="text-ink-muted mb-8">SQL query preview &amp; approval gateway</p>
+    <div class="flex gap-4 justify-center">
+        <a href="/submit" class="bg-rust text-parchment px-6 py-2 rounded font-medium hover:bg-rust-dark no-underline">Submit Query</a>
+        <a href="/approvals" class="border border-rust text-rust px-6 py-2 rounded font-medium hover:bg-rust hover:text-parchment no-underline">Approve</a>
+    </div>
+</div>"#,
+        "sqlgate",
+    )
 }
 
 /// Return a 200 OK plain-text response for the health check endpoint.
@@ -53,6 +70,7 @@ fn main() {
 
     // Build the router with registered routes.
     let mut router = Router::new();
+    router.add(Method::GET, "/", root_handler);
     router.add(Method::GET, "/health", health_handler);
     let router = Arc::new(router);
 

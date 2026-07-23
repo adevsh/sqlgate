@@ -317,20 +317,19 @@ CREATE TABLE audit_log (
 
 ### Phase 3 — Base Layout & HTMX/Alpine Conventions
 
-- [ ] Reuse the fragment/OOB swap patterns already documented in
+- [x] Reuse the fragment/OOB swap patterns already documented in
       `htmx-adminlte-ref` — port the conventions, not the Bootstrap/AdminLTE
       markup
-- [ ] `templates/layout.html` shell: nav, content slot, HTMX config
+- [x] `templates/layout.html` shell: nav, content slot, HTMX config
       (`hx-boost` where appropriate)
-- [ ] Establish the fragment-detection convention: full page on direct GET,
+- [x] Establish the fragment-detection convention: full page on direct GET,
       fragment-only response when `HX-Request` header is present
-- [ ] Define OOB swap targets for: status badges (submitted/previewed/
+- [x] Define OOB swap targets for: status badges (submitted/previewed/
       pending/approved/rejected/executed/expired) so multiple UI elements can
       update from one response
-- [ ] Alpine.js scope reserved for: textarea enhancements, copy-to-clipboard,
+- [x] Alpine.js scope reserved for: textarea enhancements, copy-to-clipboard,
       collapsible panels — nothing that requires a server round trip
-- [ ] Test: fragment vs full-page response toggles correctly on `HX-Request`
-
+- [x] Test: fragment vs full-page response toggles correctly on `HX-Request`
 ---
 
 ### Phase 4 — Postgres Persistence Layer
