@@ -1,2 +1,123 @@
 # sqlgate
-Web-based SQL query preview and approval gateway Polars-backed lazy row previews before execution.
+
+Web-based SQL query preview and approval gateway. Submit a query, get a Polars-backed row-limited preview, request approval, then execute — all through an HTMX + Alpine.js frontend behind Cloudflare Access.
+
+## Architecture
+
+```
+Browser ──▶ cloudflared ──▶ sqlgate (Rust, std::net) ──▶ Postgres (persistence)
+                │                        │
+        Cloudflare Access         ┌──────┴──────┐
+        (identity + tunnel)       │  preview DB  │ (read-only role)
+                                  │  execute DB  │ (read-write role)
+                                  └──────────────┘
+```
+
+- **HTTP server**: hand-rolled `std::net::TcpListener` — no axum, hyper, or actix
+- **Frontend**: HTMX v4 + Alpine.js v3, Tailwind CSS v4 standalone (no npm)
+- **Preview engine**: Polars `LazyFrame` with `LIMIT 5` wrap — never pulls full tables
+- **Persistence**: Postgres for requests, approvals, audit log
+- **Auth**: delegated entirely to Cloudflare Access via shared-secret tunnel header
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Runtime | Rust (edition 2024) |
+| HTTP | `std::net::TcpListener`, hand-rolled HTTP/1.1 parser |
+| Frontend | HTMX v4.0.0-beta5 + Alpine.js 3.14.9 + Tailwind CSS v4.1.18 |
+| Query preview | Polars (lazy, row-limited) |
+| Persistence | PostgreSQL (hand-written parameterized SQL) |
+| Auth | Cloudflare Access + tunnel shared-secret header |
+| Container | Multi-stage Dockerfile → `distroless/cc-debian12:nonroot` (no shell) |
+
+Zero framework dependencies: no axum, hyper, actix-web, tokio, ORM, or async runtime.
+
+## Quick Start
+
+```bash
+# Prerequisites: Rust toolchain, PostgreSQL
+
+# Install toolchain + download Tailwind standalone + vendor JS
+make setup
+
+# Build (compiles Rust + Tailwind CSS)
+make build
+
+# Run
+LISTEN_ADDR=0.0.0.0:8080 cargo run
+
+# Smoke test
+curl http://localhost:8080/health      # → "ok"
+curl http://localhost:8080/            # → full HTML page
+curl -H "HX-Request: true" localhost:8080/  # → fragment only
+```
+
+## Environment Variables
+
+See `.env.example` for the full list. Key variables:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LISTEN_ADDR` | `0.0.0.0:8080` | HTTP bind address |
+| `DATABASE_URL` | — | Postgres persistence DSN |
+| `CF_TUNNEL_SECRET_HEADER` | `X-CF-Tunnel-Secret` | Cloudflare tunnel shared-secret header name |
+| `CF_TUNNEL_SECRET_VALUE` | — | Shared-secret value set by cloudflared |
+| `TARGET_<name>_PREVIEW` | — | Preview role connection (read-only) |
+| `TARGET_<name>_EXECUTE` | — | Execute role connection (read-write) |
+| `APPROVAL_TTL_SECONDS` | `900` | Approval expiry (15 min) |
+
+## Development
+
+```bash
+make help        # Show all targets
+make setup       # Install tools + download Tailwind/Alpine/HTMX
+make dev         # Debug build
+make test        # Run all tests
+make fmt         # Format code
+make lint        # Clippy with -D warnings
+make build       # Release build + Tailwind CSS
+make clean       # Remove build artifacts
+```
+
+## Design Tokens
+
+Parchment/cream background with rust accents:
+
+| Token | Hex | Usage |
+|---|---|---|
+| `parchment` | `#fdf6e3` | Page background |
+| `parchment-dark` | `#f5e6c8` | Cards, nav |
+| `rust` | `#b7410e` | Buttons, links, accents |
+| `rust-light` | `#d4723a` | Hover states |
+| `amber` | `#e8a84a` | Highlights |
+| `ink` | `#2c1810` | Body text |
+| `ink-muted` | `#6b5b4f` | Secondary text |
+
+## Project Phases
+
+| # | Phase | Status |
+|---|---|---|
+| 0 | Project Scaffolding | ✅ Done |
+| 1 | Raw HTTP Server Core | ✅ Done |
+| 2 | Static Assets & Tailwind Pipeline | ✅ Done |
+| 3 | Base Layout & HTMX/Alpine Conventions | ✅ Done |
+| 4 | Postgres Persistence Layer | ⬜ Pending |
+| 5 | Cloudflare Access Identity Trust | ⬜ Pending |
+| 6 | Query Submission | ⬜ Pending |
+| 7 | Preview Engine | ⬜ Pending |
+| 8 | Approval Workflow | ⬜ Pending |
+| 9 | Execution Engine | ⬜ Pending |
+| 10 | Audit Trail & History Views | ⬜ Pending |
+| 11 | Polish | ⬜ Pending |
+| 12 | Testing & Hardening | ⬜ Pending |
+| 13 | Packaging & Deployment | ⬜ Pending |
+
+## Security Model
+
+- **Query hash verification**: re-hash `query_text` from Postgres at execute time — never trust client-supplied hash
+- **Separate DB roles**: `sqlgate_preview` (read-only) vs `sqlgate_execute` (read-write) — different connections, different credentials
+- **LIMIT wrap in Rust**: `SELECT * FROM (<query>) sub LIMIT 5` applied server-side before Polars touches rows
+- **Approval TTL**: lazy-checked on execute, not solely via background sweep — expired approvals can never execute
+- **CF Access tunnel guard**: requests without the shared-secret tunnel header are rejected, even if they forge the CF email header
+- **Audit log**: append-only, no update/delete paths anywhere in the codebase
