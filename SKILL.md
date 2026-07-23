@@ -271,11 +271,11 @@ CREATE TABLE audit_log (
 - [x] `Cargo.toml` with workspace metadata (edition 2024)
 - [x] `Makefile` with standard targets: `build`, `run`, `test`, `fmt`, `lint`,
       `db-migrate`, `docker-build`, `docker-up`, `docker-down`
-- [ ] `.env.example` documenting every required env var (DB DSNs, CF Access
+- [x] `.env.example` documenting every required env var (DB DSNs, CF Access
       shared-secret header name, target DB connection strings, preview/execute
       role credentials)
 - [x] `.gitignore` (target/, .env, static/tailwind.css build output)
-- [ ] `Dockerfile` — multi-stage build, minimal runtime base image
+- [x] `Dockerfile` — multi-stage build, minimal runtime base image
 - [x] This `SKILL.md` committed at repo root
 - [x] Confirm no `axum`/`hyper`/`actix-web`/ORM crate appears anywhere in `Cargo.toml`
 ---
