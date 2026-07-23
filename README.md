@@ -114,7 +114,7 @@ Parchment/cream background with rust accents:
 | 7 | Preview Engine | ✅ Done |
 | 8 | Approval Workflow | ✅ Done |
 | 9 | Execution Engine | ✅ Done |
-| 10 | Audit Trail & History Views | ⬜ Pending |
+| 10 | Audit Trail & History Views | ✅ Done |
 | 11 | Polish | ⬜ Pending |
 | 12 | Testing & Hardening | ⬜ Pending |
 | 13 | Packaging & Deployment | ⬜ Pending |

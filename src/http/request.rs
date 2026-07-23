@@ -20,8 +20,8 @@ pub struct Request {
     pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
     pub query: HashMap<String, String>,
-    /// Set by the auth middleware after validating CF Access headers.
-    /// `None` for public paths (`/health`, `/static/*`).
+    /// Path parameters extracted by the router (e.g. `:id`).
+    pub params: HashMap<String, String>,
     pub authenticated_user: Option<AuthenticatedUser>,
 }
 
@@ -169,6 +169,7 @@ pub fn parse(stream: &mut TcpStream) -> Result<Request, ParseError> {
         headers,
         body,
         query,
+        params: HashMap::new(),
         authenticated_user: None,
     })
 }

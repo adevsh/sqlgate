@@ -372,6 +372,43 @@ fn execute_handler(req: &request::Request) -> Response {
 
 
 /// Root page — welcome / dashboard.
+
+/// GET /history — list all requests.
+fn history_list_handler(req: &request::Request) -> Response {
+    let pool = DB_POOL.get().and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized");
+    let status_filter = req.query.get("status").map(|s| s.as_str());
+    match db::requests::list_requests(pool, status_filter, 100, 0) {
+        Ok(requests) => templates::render_page(
+            req, &extract_body(&templates::history_list(&requests)), "Query History",
+        ),
+        Err(e) => templates::submit_error(&format!("Failed: {e}")),
+    }
+}
+
+/// GET /requests/:id — detail with audit timeline.
+fn request_detail_handler(req: &request::Request) -> Response {
+    let pool = DB_POOL.get().and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized");
+    let id_str = req.params.get("id").map(|s| s.as_str()).unwrap_or("");
+    let request_id = match uuid::Uuid::parse_str(id_str) {
+        Ok(id) => id,
+        Err(_) => return templates::submit_error("Invalid request ID"),
+    };
+    let request = match db::requests::get_request(pool, &request_id) {
+        Ok(Some(r)) => r,
+        Ok(None) => return templates::submit_error("Request not found"),
+        Err(e) => return templates::submit_error(&format!("DB error: {e}")),
+    };
+    let events = match db::audit::list_audit_events(pool, &request_id) {
+        Ok(evs) => evs,
+        Err(e) => return templates::submit_error(&format!("DB error: {e}")),
+    };
+    templates::render_page(
+        req, &extract_body(&templates::request_detail(&request, &events)), "Request Detail",
+    )
+}
+
 fn root_handler(req: &request::Request) -> Response {
     templates::render_page(
         req,
@@ -421,6 +458,8 @@ fn main() {
     router.add(Method::GET, "/health", health_handler);
     router.add(Method::GET, "/submit", submit_form_handler);
     router.add(Method::GET, "/approvals", approvals_list_handler);
+    router.add(Method::GET, "/history", history_list_handler);
+    router.add(Method::GET, "/requests/:id", request_detail_handler);
     if has_db {
         router.add(Method::POST, "/submit", submit_handler);
         router.add(Method::POST, "/request-approval", request_approval_handler);
@@ -529,7 +568,10 @@ fn handle_connection(mut stream: TcpStream, router: &Router) {
                     }
                 } else {
                     match router.route(&method, &path) {
-                        Some((handler, _params)) => handler(&req),
+                        Some((handler, params)) => {
+                            req.params = params;
+                            handler(&req)
+                        }
                         None => Response::not_found(),
                     }
                 };

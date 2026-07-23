@@ -432,6 +432,7 @@ mod tests {
             headers,
             body: Vec::new(),
             query: HashMap::new(),
+            params: HashMap::new(),
             authenticated_user: None,
         }
     }
@@ -480,4 +481,93 @@ mod tests {
             assert!(badge.contains("class="));
         }
     }
+}
+/// History list: all requests with optional query-string filters.
+pub fn history_list(reqs: &[crate::db::requests::Request]) -> Response {
+    if reqs.is_empty() {
+        return Response::ok_html(
+            r##"<div class="max-w-4xl mx-auto mt-20 text-center">
+    <p class="text-ink-muted">No requests found.</p>
+</div>"##.to_string()
+        );
+    }
+
+    let mut html = String::from(r##"<div class="max-w-4xl mx-auto">
+    <h2 class="text-xl font-bold text-rust mb-4">Query History</h2>
+    <div class="overflow-x-auto border border-parchment-darker rounded">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-parchment-dark">
+                    <th class="px-3 py-2 text-left font-medium text-ink-muted border-b border-parchment-darker">ID</th>
+                    <th class="px-3 py-2 text-left font-medium text-ink-muted border-b border-parchment-darker">Requester</th>
+                    <th class="px-3 py-2 text-left font-medium text-ink-muted border-b border-parchment-darker">Target</th>
+                    <th class="px-3 py-2 text-left font-medium text-ink-muted border-b border-parchment-darker">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+"##);
+
+    for r in reqs {
+        html.push_str(&format!(
+            r##"<tr class="border-b border-parchment-darker hover:bg-parchment-dark/50 cursor-pointer"
+                    hx-get="/requests/{}" hx-target="#content" hx-swap="innerHTML">
+                    <td class="px-3 py-2 text-ink font-mono text-xs">{}</td>
+                    <td class="px-3 py-2 text-ink">{}</td>
+                    <td class="px-3 py-2 text-ink">{} ({})</td>
+                    <td class="px-3 py-2">{}</td>
+                </tr>
+"##,
+            r.id, &r.id.to_string()[..8], r.requester_email, r.target_db, r.target_topology,
+            status_badge(&r.status)
+        ));
+    }
+
+    html.push_str(r##"            </tbody>
+        </table>
+    </div>
+</div>"##);
+    Response::ok_html(html)
+}
+
+/// Request detail: full timeline from audit_log.
+pub fn request_detail(req: &crate::db::requests::Request, events: &[crate::db::audit::AuditEvent]) -> Response {
+    let mut html = format!(r##"<div class="max-w-4xl mx-auto" id="request-detail">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-rust">Request Detail</h2>
+        <a href="/history" class="text-ink-muted hover:text-rust text-sm"
+           hx-get="/history" hx-target="#content" hx-swap="innerHTML">Back to History</a>
+    </div>
+
+    <div class="border border-parchment-darker rounded p-4 mb-4 bg-parchment">
+        <div class="grid grid-cols-2 gap-2 text-sm">
+            <div><span class="text-ink-muted">ID:</span> <code class="font-mono text-xs">{}</code></div>
+            <div><span class="text-ink-muted">Status:</span> {}</div>
+            <div><span class="text-ink-muted">Requester:</span> {}</div>
+            <div><span class="text-ink-muted">Target:</span> {} ({})</div>
+        </div>
+        <pre class="mt-3 bg-parchment-darker rounded p-2 text-xs font-mono text-ink overflow-x-auto">{}</pre>
+    </div>
+
+    <h3 class="text-lg font-bold text-ink mb-2">Audit Timeline</h3>
+    <div class="space-y-2">
+"##,
+        req.id, status_badge(&req.status), req.requester_email, req.target_db, req.target_topology, req.query_text,
+    );
+
+    for ev in events {
+        let time_str = format!("{:?}", ev.created_at);
+        html.push_str(&format!(
+            r##"<div class="flex items-start gap-3 border-l-2 border-rust pl-3 py-1">
+            <span class="text-xs text-ink-muted font-mono w-32 shrink-0">{}</span>
+            <span class="text-xs font-medium text-rust w-28 shrink-0">{}</span>
+            <span class="text-xs text-ink">{}</span>
+        </div>
+"##,
+            &time_str[..time_str.len().min(19)], ev.event_type, ev.actor_email
+        ));
+    }
+
+    html.push_str(r##"    </div>
+</div>"##);
+    Response::ok_html(html)
 }
