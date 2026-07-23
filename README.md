@@ -121,3 +121,7 @@ Parchment/cream background with rust accents:
 - **Approval TTL**: lazy-checked on execute, not solely via background sweep — expired approvals can never execute
 - **CF Access tunnel guard**: requests without the shared-secret tunnel header are rejected, even if they forge the CF email header
 - **Audit log**: append-only, no update/delete paths anywhere in the codebase
+
+---
+
+Built with omp + deepseek-v4-pro. Token cost so far: **$0.18**.
