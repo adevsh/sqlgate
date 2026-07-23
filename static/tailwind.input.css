@@ -1,0 +1,28 @@
+/*! sqlgate design tokens — parchment/cream with rust accents.
+  Tailwind v4 standalone (no npm). Build with: make build
+*/
+
+@import "tailwindcss";
+
+@theme {
+  /* Background palette */
+  --color-parchment: #fdf6e3;
+  --color-parchment-dark: #f5e6c8;
+  --color-parchment-darker: #e8d5a3;
+
+  /* Accent palette — rust / amber */
+  --color-rust: #b7410e;
+  --color-rust-light: #d4723a;
+  --color-rust-dark: #8b2f0a;
+  --color-amber: #e8a84a;
+
+  /* Text */
+  --color-ink: #2c1810;
+  --color-ink-muted: #6b5b4f;
+  --color-ink-light: #9b8b7f;
+
+  /* Semantic */
+  --color-success: #2d6a4f;
+  --color-danger: #b91c1c;
+  --color-warning: #ca8a04;
+}

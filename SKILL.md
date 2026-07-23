@@ -303,17 +303,16 @@ CREATE TABLE audit_log (
 
 ### Phase 2 — Static Assets & Tailwind Pipeline
 
-- [ ] `static/tailwind.input.css` with project design tokens (parchment/cream
+- [x] `static/tailwind.input.css` with project design tokens (parchment/cream
       with rust accents, per the established web-UI palette)
-- [ ] Tailwind CLI build step wired into `make build` (`npx tailwindcss` or
+- [x] Tailwind CLI build step wired into `make build` (`npx tailwindcss` or
       the standalone Tailwind binary — decide and document; avoid a JS
       runtime dependency if the standalone binary suffices)
-- [ ] Static file handler in the router for `/static/*`, with correct
+- [x] Static file handler in the router for `/static/*`, with correct
       `Content-Type` per extension and basic caching headers
-- [ ] Vendor Alpine.js as a static file (`static/alpine.min.js`) — no CDN
+- [x] Vendor Alpine.js as a static file (`static/alpine.min.js`) — no CDN
       dependency at runtime
-- [ ] Test: static handler rejects path traversal (`/static/../../etc/passwd`)
-
+- [x] Test: static handler rejects path traversal (`/static/../../etc/passwd`)
 ---
 
 ### Phase 3 — Base Layout & HTMX/Alpine Conventions

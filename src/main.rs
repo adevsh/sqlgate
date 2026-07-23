@@ -8,6 +8,7 @@
 //! bounded thread pool.
 
 mod http;
+mod static_files;
 
 use http::request;
 use http::response::Response;
@@ -127,19 +128,24 @@ fn handle_connection(mut stream: TcpStream, router: &Router) {
             Ok(req) => {
                 let method = req.method.clone();
                 let path = req.path.clone();
-                match router.route(&method, &path) {
-                    Some((handler, _params)) => {
-                        let response = handler(&req);
-                        if let Err(e) = response.write(&mut stream) {
-                            eprintln!("sqlgate: write error: {}", e);
-                        }
+
+                // Route /static/* before the general router — static files
+                // use a catch-all pattern the router doesn't natively support.
+                let response = if let Some(file_path) = path.strip_prefix("/static/") {
+                    if method == "GET" || method == "HEAD" {
+                        static_files::serve(file_path)
+                    } else {
+                        Response::bad_request("method not allowed on static files")
                     }
-                    None => {
-                        let response = Response::not_found();
-                        if let Err(e) = response.write(&mut stream) {
-                            eprintln!("sqlgate: write error: {}", e);
-                        }
+                } else {
+                    match router.route(&method, &path) {
+                        Some((handler, _params)) => handler(&req),
+                        None => Response::not_found(),
                     }
+                };
+
+                if let Err(e) = response.write(&mut stream) {
+                    eprintln!("sqlgate: write error: {}", e);
                 }
             }
             Err(e) => {
