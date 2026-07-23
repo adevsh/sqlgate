@@ -3,7 +3,7 @@
 TAILWIND_VERSION := v4.1.18
 TAILWIND_BIN := ./bin/tailwindcss
 HTMX_VERSION := 4.0.0-beta.5
-
+ALPINE_VERSION := 3.14.9
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
 		| sort \

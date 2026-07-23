@@ -181,4 +181,4 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO sqlgate_execute;
 
 ---
 
-Built with omp + deepseek-v4-pro. Token cost so far: **$1.01**.
+Built with omp + deepseek-v4-pro. Token cost so far: **$1.03**.
