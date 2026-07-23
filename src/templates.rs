@@ -131,6 +131,125 @@ pub fn status_badge(status: &str) -> String {
     )
 }
 
+
+// --- Submit form fragments ---
+
+/// The query submission form rendered as an HTMX fragment.
+/// Posted back to POST /submit via `hx-post`.
+///
+/// Fields:
+/// - `query` — the SQL SELECT statement (textarea, required)
+/// - `target_kind` — "postgres" | "mysql" (hidden if only one is supported)
+/// - `target_db` — database name (text input, required)
+/// - `target_topology` — "primary" | "replica" (toggle)
+pub fn submit_form() -> Response {
+    let html = r##"<div class="max-w-2xl mx-auto">
+    <h2 class="text-xl font-bold text-rust mb-4">Submit Query for Preview</h2>
+    <form id="submit-form" hx-post="/submit" hx-target="#content" hx-swap="innerHTML"
+          class="space-y-4">
+        <div>
+            <label for="query" class="block text-sm font-medium text-ink-muted mb-1">
+                SQL Query
+            </label>
+            <textarea id="query" name="query" rows="8" required
+                placeholder="SELECT * FROM ..."
+                class="w-full border border-parchment-darker rounded px-3 py-2 bg-parchment font-mono text-sm
+                       focus:outline-none focus:border-rust focus:ring-1 focus:ring-rust"
+                x-data
+                x-init="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"></textarea>
+            <p class="text-xs text-ink-muted mt-1">
+                Only <code class="bg-parchment-darker px-1 rounded">SELECT</code> queries (or
+                <code class="bg-parchment-darker px-1 rounded">WITH</code> CTEs) are allowed.
+                Stacked queries (<code class="bg-parchment-darker px-1 rounded">;</code>) are rejected.
+            </p>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+            <div>
+                <label for="target_kind" class="block text-sm font-medium text-ink-muted mb-1">
+                    Target
+                </label>
+                <select id="target_kind" name="target_kind" required
+                    class="w-full border border-parchment-darker rounded px-3 py-2 bg-parchment text-sm
+                           focus:outline-none focus:border-rust focus:ring-1 focus:ring-rust">
+                    <option value="postgres">PostgreSQL</option>
+                    <option value="mysql">MySQL</option>
+                </select>
+            </div>
+            <div>
+                <label for="target_db" class="block text-sm font-medium text-ink-muted mb-1">
+                    Database
+                </label>
+                <input type="text" id="target_db" name="target_db" required
+                    placeholder="mydb"
+                    class="w-full border border-parchment-darker rounded px-3 py-2 bg-parchment text-sm
+                           focus:outline-none focus:border-rust focus:ring-1 focus:ring-rust">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-ink-muted mb-1">
+                    Topology
+                </label>
+                <div class="flex items-center gap-3 pt-2">
+                    <label class="inline-flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name="target_topology" value="primary" checked
+                            class="accent-rust">
+                        <span class="text-sm text-ink">Primary</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name="target_topology" value="replica"
+                            class="accent-rust">
+                        <span class="text-sm text-ink">Replica</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div>
+            <button type="submit"
+                class="bg-rust text-parchment font-medium px-6 py-2 rounded
+                       hover:bg-rust/90 active:bg-rust/80 transition-colors">
+                Submit for Preview
+            </button>
+        </div>
+    </form>
+    <div id="submit-error" class="hidden mt-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded text-sm"></div>
+</div>"##;
+    Response::ok_html(html.to_string())
+}
+
+/// Success message shown after a query is submitted.
+pub fn submit_success(request_id: &str) -> Response {
+    let html = format!(
+        r##"<div class="max-w-2xl mx-auto text-center mt-20">
+    <div class="text-5xl mb-4 text-emerald-600">&#10003;</div>
+    <h2 class="text-xl font-bold text-ink mb-2">Query Submitted</h2>
+    <p class="text-ink-muted mb-4">
+        Your query has been submitted for preview. Request ID:
+        <code class="bg-parchment-darker px-2 py-0.5 rounded text-sm font-mono">{}</code>
+    </p>
+    <p class="text-ink-muted text-sm">
+        The preview engine will run it against a read-only role and return results shortly.
+    </p>
+    <a href="/submit" class="inline-block mt-6 text-rust hover:underline text-sm"
+       hx-get="/submit" hx-target="#content" hx-swap="innerHTML">
+        Submit another query
+    </a>
+</div>"##,
+        request_id
+    );
+    Response::ok_html(html)
+}
+
+/// Error fragment returned inline via HTMX when submission fails validation.
+pub fn submit_error(message: &str) -> Response {
+    let html = format!(
+        r#"<div id="submit-error" class="mt-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded text-sm" hx-swap-oob="true">
+    <p>{}</p>
+</div>"#,
+        message
+    );
+    Response::ok_html(html)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

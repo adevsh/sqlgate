@@ -102,9 +102,9 @@ Parchment/cream background with rust accents:
 | 1 | Raw HTTP Server Core | ✅ Done |
 | 2 | Static Assets & Tailwind Pipeline | ✅ Done |
 | 3 | Base Layout & HTMX/Alpine Conventions | ✅ Done |
-| 4 | Postgres Persistence Layer | ⬜ Pending |
-| 5 | Cloudflare Access Identity Trust | ⬜ Pending |
-| 6 | Query Submission | ⬜ Pending |
+| 4 | Postgres Persistence Layer | ✅ Done |
+| 5 | Cloudflare Access Identity Trust | ✅ Done |
+| 6 | Query Submission | ✅ Done |
 | 7 | Preview Engine | ⬜ Pending |
 | 8 | Approval Workflow | ⬜ Pending |
 | 9 | Execution Engine | ⬜ Pending |
@@ -124,4 +124,4 @@ Parchment/cream background with rust accents:
 
 ---
 
-Built with omp + deepseek-v4-pro. Token cost so far: **$0.26**.
+Built with omp + deepseek-v4-pro. Token cost so far: **$0.31**.

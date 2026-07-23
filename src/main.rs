@@ -11,22 +11,121 @@ mod http;
 mod static_files;
 mod templates;
 mod db;
+mod preview;
 mod auth;
 
 use auth::cf_access;
 use http::request;
 use http::response::Response;
 use http::router::{Method, Router};
+use preview::validator::validate_query;
+use r2d2::Pool;
+use r2d2_postgres::PostgresConnectionManager;
+use sha2::{Digest, Sha256};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
-
-/// Global shutdown flag set by SIGTERM / SIGINT handler.
+static DB_POOL: OnceLock<Option<Pool<PostgresConnectionManager<postgres::NoTls>>>> = OnceLock::new();
 static RUNNING: AtomicBool = AtomicBool::new(true);
+
 extern "C" fn handle_signal(_signum: libc::c_int) {
     RUNNING.store(false, Ordering::SeqCst);
+}
+
+/// GET /submit — render the query submission form.
+fn submit_form_handler(req: &request::Request) -> Response {
+    templates::render_page(req, &extract_body(&templates::submit_form()), "Submit Query")
+}
+
+/// POST /submit — validate, hash, persist, return success.
+///
+/// Requires authentication (auth check happens before routing).
+fn submit_handler(req: &request::Request) -> Response {
+    let user = match &req.authenticated_user {
+        Some(u) => u,
+        None => return Response::bad_request("authentication required"),
+    };
+
+    // Parse form body.
+    let form = req.parse_form();
+    let query = form.get("query").map(|s| s.as_str()).unwrap_or("");
+    let target_kind = form.get("target_kind").map(|s| s.as_str()).unwrap_or("postgres");
+    let target_db = form.get("target_db").map(|s| s.as_str()).unwrap_or("");
+    let target_topology = form.get("target_topology").map(|s| s.as_str()).unwrap_or("primary");
+
+    // Validate SQL.
+    if let Err(msg) = validate_query(query, preview::validator::MAX_QUERY_LEN) {
+        return templates::submit_error(&msg);
+    }
+
+    // Validate required fields.
+    if target_db.is_empty() {
+        return templates::submit_error("Database name is required");
+    }
+    if !["postgres", "mysql"].contains(&target_kind) {
+        return templates::submit_error("Invalid target kind");
+    }
+    if !["primary", "replica"].contains(&target_topology) {
+        return templates::submit_error("Invalid target topology");
+    }
+
+    // Compute query hash.
+    let mut hasher = Sha256::new();
+    hasher.update(query.as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+
+    // Persist.
+    let pool = DB_POOL.get()
+        .and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized or database unavailable");
+    match db::requests::insert_request(
+        pool,
+        query,
+        &hash,
+        target_kind,
+        target_db,
+        target_topology,
+        &user.email,
+    ) {
+        Ok(request_id) => {
+            // Audit log — fire and forget (best-effort).
+            let details = serde_json::json!({
+                "target_kind": target_kind,
+                "target_db": target_db,
+                "target_topology": target_topology,
+                "query_hash": hash,
+            });
+            let _ = db::audit::append_audit_event(
+                pool,
+                Some(&request_id),
+                "submitted",
+                &user.email,
+                Some(&details),
+            );
+            templates::submit_success(&request_id.to_string())
+        }
+        Err(e) => {
+            // If the hash collides (UNIQUE constraint), it's a duplicate
+            // submission — treat as validation failure.
+            let msg = if let db::DbError::Query(ref pg_err) = e {
+                if pg_err.code().map(|c| c.code()) == Some("23505") {
+                    "This exact query has already been submitted".to_string()
+                } else {
+                    format!("Database error: {}", e)
+                }
+            } else {
+                format!("Database error: {}", e)
+            };
+            templates::submit_error(&msg)
+        }
+    }
+}
+
+/// Extract the HTML body string from a Response for use with render_page.
+fn extract_body(resp: &Response) -> String {
+    String::from_utf8_lossy(&resp.body).into_owned()
 }
 
 /// Root page — welcome / dashboard.
@@ -71,10 +170,19 @@ fn main() {
     let listen_addr =
         std::env::var("LISTEN_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
 
+    // Initialize database pool (optional — server starts without it).
+    let pool = db::connect();
+    let has_db = pool.is_some();
+    DB_POOL.set(pool).expect("DB_POOL already set");
+
     // Build the router with registered routes.
     let mut router = Router::new();
     router.add(Method::GET, "/", root_handler);
     router.add(Method::GET, "/health", health_handler);
+    router.add(Method::GET, "/submit", submit_form_handler);
+    if has_db {
+        router.add(Method::POST, "/submit", submit_handler);
+    }
     let router = Arc::new(router);
 
     let listener = TcpListener::bind(&listen_addr).unwrap_or_else(|e| {

@@ -368,16 +368,16 @@ CREATE TABLE audit_log (
 
 ### Phase 6 — Query Submission
 
-- [ ] Submission form: query text, target kind (Postgres/MySQL), target
+- [x] Submission form: query text, target kind (Postgres/MySQL), target
       database name, target topology (primary/replica toggle)
-- [ ] `preview/validator.rs`: parse the submitted SQL and reject anything
+- [x] `preview/validator.rs`: parse the submitted SQL and reject anything
       that isn't a single `SELECT` statement for the preview path
-- [ ] On submit: compute `query_hash`, insert `requests` row with
+- [x] On submit: compute `query_hash`, insert `requests` row with
       `status = 'submitted'`, write an `audit_log` entry
-- [ ] Reject empty queries, queries above a configured max length, and
+- [x] Reject empty queries, queries above a configured max length, and
       multi-statement submissions (`;`-separated stacked queries)
-- [ ] Test: non-SELECT submission is rejected with a clear error fragment
-- [ ] Test: stacked-query submission (`SELECT ...; DROP TABLE ...`) is rejected
+- [x] Test: non-SELECT submission is rejected with a clear error fragment
+- [x] Test: stacked-query submission (`SELECT ...; DROP TABLE ...`) is rejected
 
 ---
 

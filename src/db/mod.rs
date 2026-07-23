@@ -10,7 +10,6 @@ pub mod requests;
 
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use std::env;
 
 /// Unified error type for all database operations.
 #[derive(Debug)]
@@ -51,12 +50,16 @@ pub type DbResult<T> = Result<T, DbError>;
 ///
 /// Panics if `DATABASE_URL` is not set or the pool cannot be created — database
 /// connectivity is a hard prerequisite for sqlgate.
-pub fn connect() -> Pool<PostgresConnectionManager<postgres::NoTls>> {
-    let url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+/// Build an `r2d2` connection pool from the `DATABASE_URL` environment variable.
+///
+/// Returns `None` if `DATABASE_URL` is not set — the server can start without
+/// a database for read-only operations (static assets, health check, form rendering).
+pub fn connect() -> Option<Pool<PostgresConnectionManager<postgres::NoTls>>> {
+    let url = std::env::var("DATABASE_URL").ok()?;
     let manager =
-        PostgresConnectionManager::new(url.parse().expect("invalid DATABASE_URL"), postgres::NoTls);
+        PostgresConnectionManager::new(url.parse().ok()?, postgres::NoTls);
     Pool::builder()
         .max_size(5)
         .build(manager)
-        .expect("failed to create database connection pool")
+        .ok()
 }

@@ -64,7 +64,7 @@ mod tests {
         if env::var("DATABASE_URL").is_err() {
             return None;
         }
-        Some(db::connect())
+        db::connect()
     }
 
     #[test]
