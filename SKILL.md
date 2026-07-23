@@ -427,32 +427,32 @@ CREATE TABLE audit_log (
 
 ### Phase 9 — Execution Engine
 
-- [ ] `execute/hash.rs`: re-hash the stored `query_text` immediately before
+- [x] `execute/hash.rs`: re-hash the stored `query_text` immediately before
       execution; compare against the hash stored at submission using a
       constant-time comparison
-- [ ] Abort execution (and log `hash_matched = false`) on any mismatch —
+- [x] Abort execution (and log `hash_matched = false`) on any mismatch —
       never silently proceed
-- [ ] Open the target connection using the `sqlgate_execute` role only,
+- [x] Open the target connection using the `sqlgate_execute` role only,
       and only after hash verification succeeds
-- [ ] Wrap execution in an explicit transaction; commit only on success
-- [ ] Record `rows_affected`, `executed_query_hash`, `hash_matched`, and any
+- [x] Wrap execution in an explicit transaction; commit only on success
+- [x] Record `rows_affected`, `executed_query_hash`, `hash_matched`, and any
       `error_message` in `executions`
-- [ ] Update `requests.status = 'executed'`, write a final `audit_log` entry
-- [ ] Test: a request whose stored `query_text` is somehow altered between
+- [x] Update `requests.status = 'executed'`, write a final `audit_log` entry
+- [x] Test: a request whose stored `query_text` is somehow altered between
       approval and execution fails closed (hash mismatch aborts)
-- [ ] Test: execution failure (e.g. constraint violation) rolls back cleanly
+- [x] Test: execution failure (e.g. constraint violation) rolls back cleanly
       and is recorded with `error_message` populated
 
 ---
 
 ### Phase 10 — Audit Trail & History Views
 
-- [ ] Request detail view: full timeline (submitted → previewed → approved/
+- [x] Request detail view: full timeline (submitted → previewed → approved/
       rejected → executed/expired) sourced entirely from `audit_log`
-- [ ] Filterable history list: by requester, approver, status, target database
-- [ ] Read-only — no view in the app ever allows editing or deleting an
+- [x] Filterable history list: by requester, approver, status, target database
+- [x] Read-only — no view in the app ever allows editing or deleting an
       audit entry
-- [ ] Test: history view timeline matches `audit_log` insertion order exactly
+- [x] Test: history view timeline matches `audit_log` insertion order exactly
 
 ---
 
