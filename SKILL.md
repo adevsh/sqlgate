@@ -458,15 +458,13 @@ CREATE TABLE audit_log (
 
 ### Phase 11 — Polish
 
-- [ ] Apply the parchment/cream + rust-accent palette consistently across
+- [x] Apply the parchment/cream + rust-accent palette consistently across
       all templates
-- [ ] Status badges with consistent color coding across list and detail views
-- [ ] Loading state on preview run (HTMX indicator) since preview may take a
-      few seconds against a real database
-- [ ] Empty states: no pending approvals, no history yet
-- [ ] Copy-to-clipboard for query text (Alpine.js, no server round trip)
-- [ ] Confirm dialogs (Alpine.js) before reject and before execute-adjacent
-      approve action
+- [x] Status badges with consistent color coding across list and detail views
+- [x] Loading state on preview run (HTMX indicator)
+- [x] Empty states: no pending approvals, no history yet
+- [x] Copy-to-clipboard for query text (Alpine.js, no server round trip)
+- [x] Confirm dialogs (Alpine.js) before reject and approve actions
 
 ---
 

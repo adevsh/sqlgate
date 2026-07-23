@@ -209,9 +209,10 @@ pub fn submit_form() -> Response {
                        hover:bg-rust/90 active:bg-rust/80 transition-colors">
                 Submit for Preview
             </button>
+            <span id="submit-spinner" class="htmx-indicator ml-3 text-ink-muted text-sm">
+                Running preview…
+            </span>
         </div>
-    </form>
-    <div id="submit-error" class="hidden mt-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded text-sm"></div>
 </div>"##;
     Response::ok_html(html.to_string())
 }
@@ -545,7 +546,13 @@ pub fn request_detail(req: &crate::db::requests::Request, events: &[crate::db::a
             <div><span class="text-ink-muted">Requester:</span> {}</div>
             <div><span class="text-ink-muted">Target:</span> {} ({})</div>
         </div>
-        <pre class="mt-3 bg-parchment-darker rounded p-2 text-xs font-mono text-ink overflow-x-auto">{}</pre>
+        <div class="flex items-start justify-between mt-3">
+            <pre class="bg-parchment-darker rounded p-2 text-xs font-mono text-ink overflow-x-auto flex-1">{}</pre>
+            <button class="ml-2 px-2 py-1 text-xs border border-parchment-darker rounded text-ink-muted hover:text-rust hover:border-rust shrink-0"
+                    x-data @click="navigator.clipboard.writeText($el.previousElementSibling.textContent); $el.textContent='Copied!'; setTimeout(()=>$el.textContent='Copy',1500)">
+                Copy
+            </button>
+        </div>
     </div>
 
     <h3 class="text-lg font-bold text-ink mb-2">Audit Timeline</h3>
@@ -553,7 +560,6 @@ pub fn request_detail(req: &crate::db::requests::Request, events: &[crate::db::a
 "##,
         req.id, status_badge(&req.status), req.requester_email, req.target_db, req.target_topology, req.query_text,
     );
-
     for ev in events {
         let time_str = format!("{:?}", ev.created_at);
         html.push_str(&format!(
