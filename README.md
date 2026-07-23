@@ -113,7 +113,7 @@ Parchment/cream background with rust accents:
 | 6 | Query Submission | ✅ Done |
 | 7 | Preview Engine | ✅ Done |
 | 8 | Approval Workflow | ✅ Done |
-| 9 | Execution Engine | ⬜ Pending |
+| 9 | Execution Engine | ✅ Done |
 | 10 | Audit Trail & History Views | ⬜ Pending |
 | 11 | Polish | ⬜ Pending |
 | 12 | Testing & Hardening | ⬜ Pending |
@@ -130,4 +130,4 @@ Parchment/cream background with rust accents:
 
 ---
 
-Built with omp + deepseek-v4-pro. Token cost so far: **$0.72**.
+Built with omp + deepseek-v4-pro. Token cost so far: **$0.78**.

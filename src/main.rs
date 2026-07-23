@@ -11,6 +11,7 @@ mod http;
 mod static_files;
 mod templates;
 mod db;
+mod execute;
 mod targets;
 mod preview;
 mod auth;
@@ -21,9 +22,10 @@ use http::response::Response;
 use http::router::{Method, Router};
 use preview::engine;
 use preview::validator::validate_query;
+use sha2::{Digest, Sha256};
+use execute::engine as exec_engine;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
-use sha2::{Digest, Sha256};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -345,6 +347,29 @@ fn reject_handler(req: &request::Request) -> Response {
         Err(e) => templates::submit_error(&format!("Failed to reload: {e}")),
     }
 }
+/// POST /execute — execute an approved query against the target.
+fn execute_handler(req: &request::Request) -> Response {
+    let user = match &req.authenticated_user {
+        Some(u) => u,
+        None => return Response::bad_request("authentication required"),
+    };
+
+    let form = req.parse_form();
+    let request_id_str = form.get("request_id").map(|s| s.as_str()).unwrap_or("");
+    let request_id = match uuid::Uuid::parse_str(request_id_str) {
+        Ok(id) => id,
+        Err(_) => return templates::submit_error("Invalid request ID"),
+    };
+
+    let pool = DB_POOL.get().and_then(|p| p.as_ref())
+        .expect("DB_POOL not initialized");
+
+    // Lazy-expire stale approvals.
+    let _ = db::approvals::expire_stale_approvals(pool);
+
+    exec_engine::run_execute_pipeline(pool, &request_id, &user.email)
+}
+
 
 /// Root page — welcome / dashboard.
 fn root_handler(req: &request::Request) -> Response {
@@ -373,10 +398,6 @@ fn main() {
     unsafe {
         let mut sa: libc::sigaction = std::mem::zeroed();
         sa.sa_sigaction = handle_signal as *const () as usize;
-        // sa_flags = 0: kernel calls handler with single arg (signum) as if
-        // it were sa_handler. On macOS aarch64, sa_sigaction is usize and
-        // overlays the C union — without SA_SIGINFO, the kernel treats it
-        // as sa_handler.
         if libc::sigaction(libc::SIGTERM, &sa, std::ptr::null_mut()) != 0 {
             eprintln!("sqlgate: warning: failed to register SIGTERM handler");
         }
@@ -394,6 +415,7 @@ fn main() {
     DB_POOL.set(pool).expect("DB_POOL already set");
 
     // Build the router with registered routes.
+    // Build the router with registered routes.
     let mut router = Router::new();
     router.add(Method::GET, "/", root_handler);
     router.add(Method::GET, "/health", health_handler);
@@ -404,6 +426,7 @@ fn main() {
         router.add(Method::POST, "/request-approval", request_approval_handler);
         router.add(Method::POST, "/approve", approve_handler);
         router.add(Method::POST, "/reject", reject_handler);
+        router.add(Method::POST, "/execute", execute_handler);
     }
     let router = Arc::new(router);
 
