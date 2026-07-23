@@ -1,4 +1,4 @@
-.PHONY: help setup install dev fmt lint test build clean tailwind assets
+.PHONY: help setup install dev fmt lint test db-migrate build clean tailwind assets
 
 TAILWIND_VERSION := v4.1.18
 TAILWIND_BIN := ./bin/tailwindcss
@@ -51,10 +51,13 @@ lint: ## Run clippy
 test: ## Run all tests
 	cargo test
 
+db-migrate: ## Apply schema.sql to Postgres (plain psql -f, no migration framework)
+	@test -n "$$DATABASE_URL" || { echo "DATABASE_URL must be set"; exit 1; }
+	psql "$$DATABASE_URL" -f db/schema.sql
+
 build: tailwind ## Build release binary + Tailwind CSS
 	$(TAILWIND_BIN) -i static/tailwind.input.css -o static/tailwind.css --minify
 	cargo build --release
-
 clean: ## Remove build artifacts
 	cargo clean
 	rm -f static/tailwind.css

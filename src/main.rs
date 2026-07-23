@@ -10,6 +10,7 @@
 mod http;
 mod static_files;
 mod templates;
+mod db;
 
 use http::request;
 use http::response::Response;

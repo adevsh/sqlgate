@@ -334,21 +334,20 @@ CREATE TABLE audit_log (
 
 ### Phase 4 — Postgres Persistence Layer
 
-- [ ] `db/schema.sql` committed as source of truth; `make db-migrate` applies
+- [x] `db/schema.sql` committed as source of truth; `make db-migrate` applies
       it (plain `psql -f`, no migration framework unless a clear need
       emerges)
-- [ ] `db/requests.rs`: `insert_request`, `get_request`, `list_requests`
+- [x] `db/requests.rs`: `insert_request`, `get_request`, `list_requests`
       (hand-written SQL, parameterized — never string-concatenated)
-- [ ] `db/approvals.rs`: `insert_approval`, `expire_stale_approvals`
-- [ ] `db/executions.rs`: `insert_execution`
-- [ ] `db/audit.rs`: `append_audit_event` (insert-only, no update/delete path
+- [x] `db/approvals.rs`: `insert_approval`, `expire_stale_approvals`
+- [x] `db/executions.rs`: `insert_execution`
+- [x] `db/audit.rs`: `append_audit_event` (insert-only, no update/delete path
       exposed anywhere in the codebase)
-- [ ] Connection pooling: minimal hand-rolled pool or a single-purpose crate
+- [x] Connection pooling: minimal hand-rolled pool or a single-purpose crate
       — document the choice; this is not the HTTP layer, so a DB driver
       crate is expected and fine
-- [ ] Test: every table has a passing round-trip insert + read test
-- [ ] Test: `audit_log` has no code path that updates or deletes existing rows
-
+- [x] Test: every table has a passing round-trip insert + read test
+- [x] Test: `audit_log` has no code path that updates or deletes existing rows
 ---
 
 ### Phase 5 — Cloudflare Access Identity Trust
