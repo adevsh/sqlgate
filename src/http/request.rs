@@ -3,6 +3,8 @@
 //! 501. This is the first stop in the request lifecycle — every incoming
 //! connection hits this module before routing.
 
+use crate::auth::cf_access::AuthenticatedUser;
+
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
@@ -18,6 +20,9 @@ pub struct Request {
     pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
     pub query: HashMap<String, String>,
+    /// Set by the auth middleware after validating CF Access headers.
+    /// `None` for public paths (`/health`, `/static/*`).
+    pub authenticated_user: Option<AuthenticatedUser>,
 }
 
 /// Errors that can occur during request parsing.
@@ -164,6 +169,7 @@ pub fn parse(stream: &mut TcpStream) -> Result<Request, ParseError> {
         headers,
         body,
         query,
+        authenticated_user: None,
     })
 }
 

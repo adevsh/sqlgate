@@ -124,4 +124,4 @@ Parchment/cream background with rust accents:
 
 ---
 
-Built with omp + deepseek-v4-pro. Token cost so far: **$0.18**.
+Built with omp + deepseek-v4-pro. Token cost so far: **$0.26**.

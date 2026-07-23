@@ -147,6 +147,7 @@ mod tests {
             headers,
             body: Vec::new(),
             query: HashMap::new(),
+            authenticated_user: None,
         }
     }
 

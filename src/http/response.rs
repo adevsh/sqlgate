@@ -6,6 +6,7 @@ use std::io::Write;
 use std::net::TcpStream;
 
 /// An HTTP/1.1 response ready to be written to a TcpStream.
+#[derive(Debug)]
 pub struct Response {
     pub status: u16,
     pub headers: Vec<(String, String)>,

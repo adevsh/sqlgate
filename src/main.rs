@@ -11,7 +11,9 @@ mod http;
 mod static_files;
 mod templates;
 mod db;
+mod auth;
 
+use auth::cf_access;
 use http::request;
 use http::response::Response;
 use http::router::{Method, Router};
@@ -144,12 +146,28 @@ fn main() {
 fn handle_connection(mut stream: TcpStream, router: &Router) {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         match request::parse(&mut stream) {
-            Ok(req) => {
+            Ok(mut req) => {
+                // --- Auth check ---
+                // Public paths (/health, /static/*) bypass authentication.
+                // Everything else requires CF Access + tunnel secret headers.
+                if !cf_access::is_public_path(&req.path) {
+                    let secret_header = std::env::var("CF_TUNNEL_SECRET_HEADER")
+                        .unwrap_or_else(|_| "X-CF-Tunnel-Secret".into());
+                    let secret_value = std::env::var("CF_TUNNEL_SECRET_VALUE")
+                        .unwrap_or_else(|_| String::new());
+                    match cf_access::authenticate(&req.headers, &secret_header, &secret_value) {
+                        Ok(user) => req.authenticated_user = Some(user),
+                        Err(response) => {
+                            let _ = response.write(&mut stream);
+                            return;
+                        }
+                    }
+                }
+
                 let method = req.method.clone();
                 let path = req.path.clone();
 
-                // Route /static/* before the general router — static files
-                // use a catch-all pattern the router doesn't natively support.
+                // Route /static/* before the general router.
                 let response = if let Some(file_path) = path.strip_prefix("/static/") {
                     if method == "GET" || method == "HEAD" {
                         static_files::serve(file_path)

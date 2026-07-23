@@ -352,19 +352,18 @@ CREATE TABLE audit_log (
 
 ### Phase 5 — Cloudflare Access Identity Trust
 
-- [ ] `auth/cf_access.rs`: extract `Cf-Access-Authenticated-User-Email`
-- [ ] Verify the request path actually came through `cloudflared` — require
+- [x] `auth/cf_access.rs`: extract `Cf-Access-Authenticated-User-Email`
+- [x] Verify the request path actually came through `cloudflared` — require
       a shared-secret header set only by the tunnel config, reject direct
       requests that lack it
-- [ ] Reject any request missing a verified identity before it reaches a
+- [x] Reject any request missing a verified identity before it reaches a
       handler that mutates state (submit/approve/reject/execute)
-- [ ] Read-only preview browsing may be allowed more loosely if desired —
+- [x] Read-only preview browsing may be allowed more loosely if desired —
       decide and document the boundary explicitly
-- [ ] Test: request without the tunnel shared-secret header is rejected even
+- [x] Test: request without the tunnel shared-secret header is rejected even
       if it forges the CF Access email header
-- [ ] Test: request with both headers correctly attributes the identity to
+- [x] Test: request with both headers correctly attributes the identity to
       the resulting audit log row
-
 ---
 
 ### Phase 6 — Query Submission
