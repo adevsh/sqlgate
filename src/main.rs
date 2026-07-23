@@ -11,6 +11,7 @@ mod http;
 mod static_files;
 mod templates;
 mod db;
+mod targets;
 mod preview;
 mod auth;
 
@@ -18,6 +19,7 @@ use auth::cf_access;
 use http::request;
 use http::response::Response;
 use http::router::{Method, Router};
+use preview::engine;
 use preview::validator::validate_query;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -104,7 +106,17 @@ fn submit_handler(req: &request::Request) -> Response {
                 &user.email,
                 Some(&details),
             );
-            templates::submit_success(&request_id.to_string())
+
+            // Run preview immediately after submission.
+            engine::run_preview_pipeline(
+                pool,
+                &request_id,
+                query,
+                target_kind,
+                target_db,
+                target_topology,
+                &user.email,
+            )
         }
         Err(e) => {
             // If the hash collides (UNIQUE constraint), it's a duplicate

@@ -250,6 +250,98 @@ pub fn submit_error(message: &str) -> Response {
     Response::ok_html(html)
 }
 
+
+/// Preview results table rendered as an HTMX fragment.
+/// Shows column headers, data rows, row count, and topology badge.
+pub fn preview_result(
+    request_id: &str,
+    preview_json: &serde_json::Value,
+    row_count: usize,
+    duration_ms: u64,
+    topology: &str,
+) -> Response {
+    let columns = preview_json["columns"].as_array().cloned().unwrap_or_default();
+    let rows = preview_json["rows"].as_array().cloned().unwrap_or_default();
+
+    let mut html = String::with_capacity(4096);
+    html.push_str(concat!(
+        r##"<div class="max-w-4xl mx-auto" id="preview-results">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-rust">Query Preview</h2>
+        <div class="flex gap-2 text-xs">
+            <span class="bg-parchment-darker px-2 py-1 rounded text-ink-muted">"##
+    ));
+    html.push_str(&format!("{}ms", duration_ms));
+    html.push_str(concat!(r##"</span>
+            <span class="bg-parchment-darker px-2 py-1 rounded text-ink-muted">"##));
+    html.push_str(&format!("{} row{}", row_count, if row_count == 1 { "" } else { "s" }));
+    html.push_str(concat!(r##"</span>
+            <span class="bg-parchment-darker px-2 py-1 rounded text-ink-muted">"##));
+    html.push_str(topology);
+    html.push_str(concat!(r##"</span>
+        </div>
+    </div>
+    <div class="overflow-x-auto border border-parchment-darker rounded">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-parchment-dark">"##));
+    for col in &columns {
+        html.push_str(&format!(
+            r##"<th class="px-3 py-2 text-left font-medium text-ink-muted border-b border-parchment-darker">{}</th>"##,
+            col.as_str().unwrap_or("?")
+        ));
+    }
+    html.push_str(concat!(r##"</tr>
+            </thead>
+            <tbody>"##));
+    for row in &rows {
+        html.push_str(concat!(r##"<tr class="border-b border-parchment-darker hover:bg-parchment-dark/50">"##));
+        for cell in row.as_array().unwrap_or(&vec![]) {
+            let val = match cell {
+                serde_json::Value::Null => r##"<span class="text-ink-muted italic">NULL</span>"##.to_string(),
+                serde_json::Value::String(s) => html_escape(s),
+                serde_json::Value::Number(n) => n.to_string(),
+                serde_json::Value::Bool(b) => b.to_string(),
+                _ => serde_json::to_string(cell).unwrap_or_default(),
+            };
+            html.push_str(&format!(r##"<td class="px-3 py-1.5 text-ink font-mono text-xs">{}</td>"##, val));
+        }
+        html.push_str(concat!(r##"</tr>"##));
+    }
+    html.push_str(concat!(r##"</tbody>
+        </table>
+    </div>
+    <div class="mt-4 flex gap-3">
+        <button class="bg-emerald-700 text-parchment px-4 py-2 rounded text-sm font-medium hover:bg-emerald-800"
+                hx-post="/approve" hx-vals='{"request_id": ""##));
+    html.push_str(request_id);
+    html.push_str(concat!(r##""}' hx-target="#content">
+            Request Approval
+        </button>
+        <button class="border border-rust text-rust px-4 py-2 rounded text-sm font-medium hover:bg-rust hover:text-parchment"
+                hx-post="/reject" hx-vals='{"request_id": ""##));
+    html.push_str(request_id);
+    html.push_str(concat!(r##""}' hx-target="#content">
+            Reject
+        </button>
+        <a href="/submit" class="inline-block text-ink-muted hover:text-ink text-sm py-2"
+           hx-get="/submit" hx-target="#content" hx-swap="innerHTML">
+            Submit another query
+        </a>
+    </div>
+</div>"##));
+
+    Response::ok_html(html)
+}
+
+/// Minimal HTML escape for cell values.
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

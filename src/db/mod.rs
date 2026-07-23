@@ -6,6 +6,7 @@
 pub mod approvals;
 pub mod audit;
 pub mod executions;
+pub mod previews;
 pub mod requests;
 
 use r2d2::Pool;

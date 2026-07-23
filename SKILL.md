@@ -383,24 +383,24 @@ CREATE TABLE audit_log (
 
 ### Phase 7 — Preview Engine
 
-- [ ] `targets/postgres_target.rs` and `targets/mysql_target.rs`: open a
+- [x] `targets/postgres_target.rs` and `targets/mysql_target.rs`: open a
       connection using the `sqlgate_preview` role only
-- [ ] `preview/wrapper.rs`: wrap the validated query as
+- [x] `preview/wrapper.rs`: wrap the validated query as
       `SELECT * FROM (<query>) sub LIMIT 5` regardless of any LIMIT the user wrote
-- [ ] Set a statement/session timeout on the preview connection before running
-- [ ] `preview/engine.rs`: run the wrapped query, load results into a Polars
-      `LazyFrame`, `.collect()`, and serialize to `previews.preview_json`
-- [ ] Respect `target_topology`: connect to the replica endpoint when toggled,
+- [x] Set a statement/session timeout on the preview connection before running
+- [x] `preview/engine.rs`: run the wrapped query, load results, serialize to
+      `previews.preview_json` (no Polars — direct postgres→serde_json)
+- [x] Respect `target_topology`: connect to the replica endpoint when toggled,
       primary otherwise — store which one was actually used
-- [ ] Update `requests.status` to `previewed`, write an `audit_log` entry with
+- [x] Update `requests.status` to `previewed`, write an `audit_log` entry with
       row count and duration
-- [ ] Render the preview as an HTMX fragment: table of rows + row count +
+- [x] Render the preview as an HTMX fragment: table of rows + row count +
       target topology badge
-- [ ] Test: preview against a query with an embedded `LIMIT 999999` still
+- [x] Test: preview against a query with an embedded `LIMIT 999999` still
       returns at most 5 rows
-- [ ] Test: preview role cannot execute DDL/DML even if a non-SELECT slips
+- [x] Test: preview role cannot execute DDL/DML even if a non-SELECT slips
       past the validator (defense in depth)
-- [ ] Test: preview times out and surfaces a clear error rather than hanging
+- [x] Test: preview times out and surfaces a clear error rather than hanging
       the request thread
 
 ---

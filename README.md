@@ -111,7 +111,7 @@ Parchment/cream background with rust accents:
 | 4 | Postgres Persistence Layer | ✅ Done |
 | 5 | Cloudflare Access Identity Trust | ✅ Done |
 | 6 | Query Submission | ✅ Done |
-| 7 | Preview Engine | ⬜ Pending |
+| 7 | Preview Engine | ✅ Done |
 | 8 | Approval Workflow | ⬜ Pending |
 | 9 | Execution Engine | ⬜ Pending |
 | 10 | Audit Trail & History Views | ⬜ Pending |
