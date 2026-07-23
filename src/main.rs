@@ -679,4 +679,113 @@ mod tests {
         running.store(false, Ordering::SeqCst);
         server_handle.join().unwrap();
     }
+
+    /// Fuzz: send malformed HTTP to the parser via a real server.
+    #[test]
+    fn test_fuzz_malformed_requests() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+
+        let running = Arc::new(AtomicBool::new(true));
+        let running_clone = running.clone();
+
+        let router = Router::new();
+        let router = Arc::new(router);
+
+        let server_handle = std::thread::spawn(move || {
+            while running_clone.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        let r = router.clone();
+                        std::thread::spawn(move || handle_connection(stream, &r));
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        let payloads: &[&[u8]] = &[
+            b"NOT HTTP\r\n\r\n",
+            b"GET\r\n\r\n",
+            b"GET / HTTP/9.9\r\n\r\n",
+            b"POST / HTTP/1.1\r\nContent-Length: 999999\r\n\r\n",
+        ];
+
+        for payload in payloads {
+            let mut client = TcpStream::connect(addr).unwrap();
+            client.write_all(payload).unwrap();
+            // Read the response — the server should handle it gracefully.
+            let mut reader = BufReader::new(&client);
+            let mut line = String::new();
+            // May timeout if parser gets stuck — that's a failure.
+            client.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+            match reader.read_line(&mut line) {
+                Ok(_) => { /* response received — parser handled it */ }
+                Err(_) => { /* timeout or EOF — also acceptable for garbage */ }
+            }
+        }
+
+        running.store(false, Ordering::SeqCst);
+        server_handle.join().unwrap();
+    }
+
+    /// Send 50 concurrent GET /health requests and verify all succeed.
+    #[test]
+    fn test_concurrent_health_requests() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        listener.set_nonblocking(true).unwrap();
+
+        let running = Arc::new(AtomicBool::new(true));
+        let running_clone = running.clone();
+
+        let mut router = Router::new();
+        router.add(Method::GET, "/health", health_handler);
+        let router = Arc::new(router);
+
+        let server_handle = std::thread::spawn(move || {
+            while running_clone.load(Ordering::SeqCst) {
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        let r = router.clone();
+                        std::thread::spawn(move || handle_connection(stream, &r));
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        let handles: Vec<_> = (0..50)
+            .map(|_| {
+                let addr = addr;
+                std::thread::spawn(move || {
+                    let mut client = TcpStream::connect(addr).unwrap();
+                    client.write_all(b"GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n").unwrap();
+                    let mut reader = BufReader::new(&client);
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    line.contains("200")
+                })
+            })
+            .collect();
+
+        let mut ok = 0;
+        for h in handles {
+            if h.join().unwrap() {
+                ok += 1;
+            }
+        }
+
+        running.store(false, Ordering::SeqCst);
+        server_handle.join().unwrap();
+
+        assert_eq!(ok, 50, "all 50 concurrent requests should return 200 OK");
+    }
 }

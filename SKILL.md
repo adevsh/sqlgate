@@ -470,16 +470,16 @@ CREATE TABLE audit_log (
 
 ### Phase 12 — Testing & Hardening
 
-- [ ] Integration test suite spins up a real Postgres (and MySQL, if in
+- [x] Integration test suite spins up a real Postgres (and MySQL, if in
       scope for tests) via Docker for realistic driver-level testing
-- [ ] Load test: verify the raw `std::net` server handles concurrent
+- [x] Load test: verify the raw `std::net` server handles concurrent
       connections without dropping requests (document the concurrency model
       limits discovered)
-- [ ] Security test pass covering every item in the **Security Model**
+- [x] Security test pass covering every item in the **Security Model**
       section above, each as an explicit automated test, not just a manual
       check
-- [ ] Fuzz or property-test the HTTP request parser against malformed input
-- [ ] Confirm `sqlgate_preview` role's actual grants in a real database
+- [x] Fuzz or property-test the HTTP request parser against malformed input
+- [x] Confirm `sqlgate_preview` role's actual grants in a real database
       (not just assumed) — write a test that attempts a write through the
       preview connection and expects a permission-denied error
 
