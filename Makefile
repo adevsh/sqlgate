@@ -51,10 +51,17 @@ lint: ## Run clippy
 test: ## Run all tests
 	cargo test
 
-db-migrate: ## Apply schema.sql to Postgres (plain psql -f, no migration framework)
-	@test -n "$$DATABASE_URL" || { echo "DATABASE_URL must be set"; exit 1; }
-	psql "$$DATABASE_URL" -f db/schema.sql
+db-up: ## Start all databases via docker compose
+	docker compose up -d --wait
 
+db-down: ## Stop and remove databases (keeps volumes)
+	docker compose down
+
+db-reset: ## Stop, remove volumes, restart from scratch
+	docker compose down -v
+	docker compose up -d --wait
+
+db-migrate: ## Apply schema.sql to Postgres (plain psql -f, no migration framework)
 build: tailwind ## Build release binary + Tailwind CSS
 	$(TAILWIND_BIN) -i static/tailwind.input.css -o static/tailwind.css --minify
 	cargo build --release

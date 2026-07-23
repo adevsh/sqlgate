@@ -36,16 +36,19 @@ Zero framework dependencies: no axum, hyper, actix-web, tokio, ORM, or async run
 ## Quick Start
 
 ```bash
-# Prerequisites: Rust toolchain, PostgreSQL
+# Prerequisites: Rust toolchain, Docker
 
 # Install toolchain + download Tailwind standalone + vendor JS
 make setup
 
-# Build (compiles Rust + Tailwind CSS)
-make build
+# Start databases (Postgres + MySQL targets + sqlgate persistence)
+make db-up
 
-# Run
-LISTEN_ADDR=0.0.0.0:8080 cargo run
+# Build + run
+make dev
+DATABASE_URL="postgres://sqlgate:sqlgate@localhost:5432/sqlgate" \
+CF_TUNNEL_SECRET_VALUE=supersecret \
+cargo run
 
 # Smoke test
 curl http://localhost:8080/health      # → "ok"
@@ -78,6 +81,9 @@ make fmt         # Format code
 make lint        # Clippy with -D warnings
 make build       # Release build + Tailwind CSS
 make clean       # Remove build artifacts
+make db-up       # Start databases via docker compose
+make db-down     # Stop databases (keeps volumes)
+make db-reset    # Tear down and rebuild from scratch
 ```
 
 ## Design Tokens
@@ -124,4 +130,4 @@ Parchment/cream background with rust accents:
 
 ---
 
-Built with omp + deepseek-v4-pro. Token cost so far: **$0.31**.
+Built with omp + deepseek-v4-pro. Token cost so far: **$0.49**.

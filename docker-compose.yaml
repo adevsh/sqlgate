@@ -1,0 +1,74 @@
+# sqlgate development environment
+#
+# Three databases:
+#   sqlgate-db       — sqlgate's own persistence (requests, approvals, audit log)
+#   target-postgres  — sample Postgres target for query preview/execution
+#   target-mysql     — sample MySQL target for query preview/execution
+#
+# Start:   docker compose up -d
+# Stop:    docker compose down
+# Reset:   docker compose down -v && docker compose up -d
+
+services:
+  # --- sqlgate persistence database ---
+  sqlgate-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sqlgate
+      POSTGRES_PASSWORD: sqlgate
+      POSTGRES_DB: sqlgate
+    ports:
+      - "5432:5432"
+    volumes:
+      - sqlgate-pg-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sqlgate -d sqlgate"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+  # --- sample Postgres target ---
+  target-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: sample_pg
+    ports:
+      - "5433:5432"
+    volumes:
+      - target-pg-data:/var/lib/postgresql/data
+      - ./docker/init-target-pg.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d sample_pg"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+  # --- sample MySQL target ---
+  target-mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sample_my
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+    ports:
+      - "3306:3306"
+    volumes:
+      - target-my-data:/var/lib/mysql
+      - ./docker/init-target-my.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  sqlgate-pg-data:
+  target-pg-data:
+  target-my-data:
