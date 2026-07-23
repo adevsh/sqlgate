@@ -68,6 +68,32 @@ services:
       retries: 20
       start_period: 10s
 
+
+  # --- sqlgate application ---
+  sqlgate:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      sqlgate-db:
+        condition: service_healthy
+    environment:
+      LISTEN_ADDR: "0.0.0.0:8080"
+      DATABASE_URL: "postgres://sqlgate:sqlgate@sqlgate-db:5432/sqlgate"
+      TARGET_sample_pg_PREVIEW: "postgres://sqlgate_preview:preview@target-postgres:5432/sample_pg"
+      TARGET_sample_pg_EXECUTE: "postgres://sqlgate_execute:execute@target-postgres:5432/sample_pg"
+      CF_TUNNEL_SECRET_VALUE: "changeme"
+    restart: unless-stopped
+
+  # --- Cloudflare Tunnel sidecar ---
+  # Uncomment and configure when deploying behind Cloudflare Access.
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   command: tunnel run --token ${CF_TUNNEL_TOKEN}
+  #   depends_on:
+  #     - sqlgate
+  #   restart: unless-stopped
+
 volumes:
   sqlgate-pg-data:
   target-pg-data:

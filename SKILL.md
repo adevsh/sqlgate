@@ -487,16 +487,16 @@ CREATE TABLE audit_log (
 
 ### Phase 13 — Packaging & Deployment
 
-- [ ] `Dockerfile`: multi-stage, minimal runtime image, no shell in the
+- [x] `Dockerfile`: multi-stage, minimal runtime image, no shell in the
       final stage if feasible (mirroring the `ubi-micro` precedent from `miso`)
-- [ ] `docker-compose.yml` (or reuse `miso`'s `cloudflared` sidecar pattern)
+- [x] `docker-compose.yml` (or reuse `miso`'s `cloudflared` sidecar pattern)
       wiring sqlgate + `cloudflared` together
-- [ ] Wire Cloudflare Access policy for the tunnel hostname before go-live
-- [ ] Document the required GitHub-adjacent-free deployment steps in README:
+- [x] Wire Cloudflare Access policy for the tunnel hostname before go-live
+- [x] Document the required GitHub-adjacent-free deployment steps in README:
       env vars, DB role creation SQL, Cloudflare Access policy setup
-- [ ] `make docker-build` / `make docker-up` / `make docker-down` verified
+- [x] `make docker-build` / `make docker-up` / `make docker-down` verified
       end to end
-- [ ] Verify container has no shell in the runtime stage (or document why one
+- [x] Verify container has no shell in the runtime stage (or document why one
       was kept, if it was)
 
 ---

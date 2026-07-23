@@ -62,9 +62,15 @@ db-reset: ## Stop, remove volumes, restart from scratch
 	docker compose up -d --wait
 
 db-migrate: ## Apply schema.sql to Postgres (plain psql -f, no migration framework)
-build: tailwind ## Build release binary + Tailwind CSS
-	$(TAILWIND_BIN) -i static/tailwind.input.css -o static/tailwind.css --minify
-	cargo build --release
+
+docker-build: ## Build Docker image
+	docker build -t sqlgate:latest .
+
+docker-up: ## Start full stack (app + DBs) via docker compose
+	docker compose up -d --build --wait
+
+docker-down: ## Stop full stack
+	docker compose down
 clean: ## Remove build artifacts
 	cargo clean
 	rm -f static/tailwind.css

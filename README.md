@@ -115,11 +115,62 @@ Parchment/cream background with rust accents:
 | 8 | Approval Workflow | ✅ Done |
 | 9 | Execution Engine | ✅ Done |
 | 10 | Audit Trail & History Views | ✅ Done |
-| 11 | Polish | ⬜ Pending |
-| 12 | Testing & Hardening | ⬜ Pending |
-| 13 | Packaging & Deployment | ⬜ Pending |
+| 11 | Polish | ✅ Done |
+| 12 | Testing & Hardening | ✅ Done |
+| 13 | Packaging & Deployment | ✅ Done |
 
+## Deployment
+
+### Docker Compose (full stack)
+
+```bash
+# Build and start everything: sqlgate + Postgres + MySQL targets
+make docker-up
+
+# Stop
+make docker-down
+```
+
+### Cloudflare Access + Tunnel
+
+1. Create a Cloudflare Tunnel pointing at `sqlgate:8080` in your docker network.
+2. Set the tunnel shared-secret header in Cloudflare Access policy.
+3. Uncomment the `cloudflared` sidecar in `docker-compose.yaml` and set `CF_TUNNEL_TOKEN`.
+
+```yaml
+# In docker-compose.yaml, uncomment:
+cloudflared:
+  image: cloudflare/cloudflared:latest
+  command: tunnel run --token ${CF_TUNNEL_TOKEN}
+```
+
+### Required env vars for production
+
+| Variable | Example |
+|---|---|
+| `DATABASE_URL` | `postgres://sqlgate:password@host:5432/sqlgate` |
+| `CF_TUNNEL_SECRET_VALUE` | Shared secret set in cloudflared config |
+| `TARGET_<db>_PREVIEW` | Read-only preview role connection |
+| `TARGET_<db>_EXECUTE` | Read-write execute role connection |
+
+### Database role setup
+
+Run the init scripts from `docker/` against your target databases:
+
+```sql
+-- Preview role (read-only)
+CREATE ROLE sqlgate_preview WITH LOGIN PASSWORD 'preview' NOSUPERUSER;
+GRANT CONNECT ON DATABASE mydb TO sqlgate_preview;
+GRANT USAGE ON SCHEMA public TO sqlgate_preview;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO sqlgate_preview;
+
+-- Execute role (read-write)
+CREATE ROLE sqlgate_execute WITH LOGIN PASSWORD 'execute' NOSUPERUSER;
+GRANT CONNECT ON DATABASE mydb TO sqlgate_execute;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO sqlgate_execute;
+```
 ## Security Model
+
 
 - **Query hash verification**: re-hash `query_text` from Postgres at execute time — never trust client-supplied hash
 - **Separate DB roles**: `sqlgate_preview` (read-only) vs `sqlgate_execute` (read-write) — different connections, different credentials
@@ -130,4 +181,4 @@ Parchment/cream background with rust accents:
 
 ---
 
-Built with omp + deepseek-v4-pro. Token cost so far: **$0.95**.
+Built with omp + deepseek-v4-pro. Token cost so far: **$1.01**.
